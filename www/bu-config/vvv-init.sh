@@ -1,5 +1,9 @@
 #!/bin/bash
 #
+
+# Define a list of theme repositories.
+
+
 # Make a database, if we don't already have one
 echo -e "\nCreating database 'bu_develop' (if it's not already there)"
 mysql -u root --password=root -e "CREATE DATABASE IF NOT EXISTS bu_develop"
@@ -21,7 +25,7 @@ if [[ ! -d /srv/www/bu-develop ]]; then
   cd /tmp/bu-develop/
 
   echo "Moving BU Develop to a shared directory, /srv/www/bu-develop"
-  mv /tmp/bu-develop /srv/www/
+  mv /tmp/bu-develop /srv/www/bu-develop
 
   cd /srv/www/bu-develop/
   echo "Creating wp-config.php for bu.develop"
@@ -34,9 +38,10 @@ if [[ ! -d /srv/www/bu-develop ]]; then
   define( 'WP_DEBUG', true );
 PHP
 
+	# Install WordPress...
 	echo "Configuring WordPress Multisite Subdirectory..."
-	wp core config --dbname=bu_develop --dbuser=wp --dbpass=wp --extra-php --allow-root <<PHP
-PHP
+		wp core install --url=bu.dev --quiet --title="BU Develop" --admin_name=admin --admin_email="admin@local.dev" --admin_password="password"
+	PHP
 
   # Install WordPress Multisite...
   echo "Installing WordPress Multisite ..."
