@@ -3,14 +3,49 @@
 
 # Define a list of theme repositories.
 bu_git_theme_list=(
-	[bu-today]="bu-today.git"
-	[r-eng]="r-eng.git"
-	[responsive-foundation]="responsive-foundation.git"
-	[resposnive-framework]="responsive-framework.git"
-	[r-abroad]="r-abroad.git"
-	[r-researchsupport]="r-researchsupport.git"
-	[r-research-sister]="r-research-sister.git"
-	[r-sphcommportal]="r-sphcommportal.git"
+	bu-admissions
+	bu-library
+	bu-sph-responsive
+	bu-today
+	flexi-global
+	flexi-honors-college
+	r-abroad
+	r-agganis
+	r-alumni
+	r-archaeology
+	r-arrows
+	r-artofpoetry
+	r-biology
+	r-brand
+	r-busm
+	r-cas-sister
+	r-cfa
+	r-comm
+	r-comm-sister
+	r-ctsi
+	r-dli
+	r-eng
+	r-evcondept
+	r-facilities
+	r-gened
+	r-hr
+	r-id
+	r-law
+	r-mssp
+	r-pardeeschool
+	r-pr
+	r-questrom
+	r-registrar
+	r-research
+	r-researchsupport
+	r-research-sister
+	r-pardeeschool
+	r-scnc
+	r-sed
+	r-sphcommportal
+	r-urop
+	responsive-foundation
+	resposnive-framework
 )
 
 # List of publicly accessible plugins.
@@ -39,22 +74,47 @@ noroot() {
   sudo -EH -u "vagrant" "$@";
 }
 
-install_private_bu_theme_repos() {
-    # Install all BU Private repos
-    for theme in "${!bu_git_theme_list[@]}"
-		do
-			#Make sure we are in the themes folder each time.
-			cd /srv/www/bu-develop/htdocs/wp-content/themes
+bu_private_theme_repos() {
+	for theme in "${bu_git_theme_list[@]}"
+	do
+		cd /srv/www/bu-develop/htdocs/wp-content/themes
 
-			if [[ ! -e $theme ]]; then
-				echo -e "Theme does not exist. Creating."
+		if [[ ! -e $theme ]]; then
+			echo -e "Theme does not exist. Creating."
 
-				echo -e "\nChecking out "$theme", see https://github.com/bu-ist/"$theme
-				git clone "git@github.com:bu-ist/"${bu_git_theme_list[$theme]}".git" $theme
-				cd $theme
-				git checkout `git describe --abbrev=0 --tags`
-      fi
-    done
+			echo -e "\nChecking out "$theme", see https://github.com/bu-ist/"$theme".git"
+			git clone "git@github.com:bu-ist/"${bu_git_theme_list[$theme]}".git" $theme
+			cd $theme
+			bu_update_packages
+		else
+			echo -e $theme
+			cd /srv/www/bu-develop/htdocs/wp-content/themes/$theme
+			git pull origin master
+			bu_update_packages
+		fi
+
+		sleep 5s
+	done
+
+}
+
+bu_update_packages() {
+	if [[ -e bower.json ]]; then
+		bower install
+	fi
+
+	if [[ -e Gemfile ]]; then
+		bundler install
+	fi
+
+	if [[ -e composer.json ]]; then
+		composer install
+	fi
+
+	if [[ -e package.json ]]; then
+		npm install
+		grunt build
+	fi
 }
 
 install_public_plugins() {
@@ -69,15 +129,11 @@ install_public_themes() {
   noroot wp plugin install ${public_themes[@]}
 }
 
-# Set up our GitHub SSH key in order to have access to private repos.
-echo -e "\nEnsuring Vagrant has access to our SSH keys..."
-key_file=~/.ssh/id_rsa
-
-if [[ -f $key_file ]]; then
-	[[ -z $(ssh-add -L | grep $key_file) ]] && ssh-add $key_file
-else
-	echo -e "\nIt appears you have not set up SSH authentication with GitHub yet. See https://help.github.com/articles/generating-an-ssh-key/"
-fi
+# add github to the list of known_hosts
+# see http://rshestakov.wordpress.com/2014/01/26/how-to-make-vagrant-and-puppet-to-clone-private-github-repo/
+echo "Add github.com to known_hosts"
+ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+ssh -T git@github.com
 
 # Make a database, if we don't already have one
 echo -e "\nCreating database 'bu_develop' (if it's not already there)"
@@ -117,7 +173,7 @@ PHP
 	echo "Configuring WordPress Multisite Subdirectory..."
   noroot wp core multisite-install --url=bu.dev --title="BU Develop" --admin_user=admin --admin_email="admin@local.dev" --admin_password="password"
 
-	install_private_bu_theme_repos
+	bu_private_theme_repos
 	install_public_plugins
 	install_public_themes
 
@@ -133,6 +189,9 @@ else
       echo "Skip auto git pull on develop.git.wordpress.org since not on master branch"
     fi
   fi
+
+	# Install and update all BU private theme GitHub repos.
+	bu_private_theme_repos
 
 	# Update all plugins
 	install_public_plugins
